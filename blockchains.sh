@@ -9,7 +9,7 @@ blue="\e[0;34m\033[1m"
 
 function ctrl_c(){
     echo -e "${red}\n\n[!]Saliendo...${end}"
-    #rm ut.t* 2>/dev/null
+    rm ut.t* 2>/dev/null
     tput cnorm &&  exit 1
 }
 
@@ -24,6 +24,7 @@ function helpPanel(){
     echo -e "\t\t${yellow}$main_url$in_url${end}\t\t\t\t${green}Inspeccionar hash de transacción${end}"
     echo -e "\t\t${yellow}$main_url$ad_url${end}\t\t\t${green}Inspeccionar una transacciones de direcciones${end}"
     echo -e "\n\n\t${green}n) Limitar el numero de resultados${end} ${yellow}(Ejemplo: $0 -e nombre de funcion -n 5)${end}"
+    echo -e "\n\n\t${green}i) Busqueda por identificador o hash${end} ${yellow}(Ejemplo: $0 -i hash)${end}"
     echo -e "\n\n\t${green}h) Mostrar panel de ayuda${end}"
 }
 #Inicio de Tabla
@@ -154,19 +155,59 @@ function unconfirmTransactions(){
     rm ut.* money* amount.table 2>/dev/null
 }
 
+function inspectTran(){
+
+    inspect_tran_hash=$1
+
+    echo "Entradas Total_Gastos Total" > total_entradas_gastos.tmp
+
+    while [ "$(cat total_entradas_gastos.tmp | wc -l)" == "1" ]; do
+	curl -s "${in_url}${inspect_tran_hash}" | html2text | grep -E "Total Input|Total Output" -A 1 | grep -v -E "Total Input|Total Output" | xargs | tr ' ' '_' | sed 's/_BTC/BTC/g' >> total_entradas_gastos.tmp
+    done 
+    echo -ne "${green}"
+    printTable '_' "$(cat total_entradas_gastos.tmp)"
+    echo -ne "${end}"
+    rm total_entradas_gastos.tmp 2>/dev/null
+    
+
+    echo "Dirección (Entradas)_Valor" > entradas.tmp
+
+    while [ "$(cat entradas.tmp | wc -l)" == "1" ]; do
+         curl -s "${in_url}${inspect_tran_hash}" | html2text | grep "Inputs" -A 500 | grep "Outputs" -B 500 | grep "Address"  -A 3 | grep -v -E "Address|Value|\--" | awk 'NR%2{printf "%s ",$0;next;}1' | awk '{print $1 "_" $2 " " $3}' >> entradas.tmp
+    done
+
+    echo -ne "${green}"
+    printTable '_' "$(cat entradas.tmp)"
+    echo -ne "${end}"
+    rm entradas.tmp 2>/dev/null
+
+    echo "Dirección (Salidas)_Valor" > salidas.tmp
+    
+    while [ "$(cat salidas.tmp | wc -l)" == "1" ]; do
+	curl -s "${in_url}${inspect_tran_hash}" | html2text | grep "Outputs" -A 500 | grep "You" -B 500 | grep "Address"  -A 3 | grep -v -E "Address|Value|\--" | awk 'NR%2{printf "%s ",$0;next;}1' | awk '{print $1 "_" $2 " " $3}' >> salidas.tmp
+    done
+
+    echo -ne "${green}"
+    printTable '_' "$(cat salidas.tmp)"
+    echo -ne "${end}"
+    rm salidas.tmp 2>/dev/null
+
+}
+
 #Variable
 main_url="https://www.blockchain.com/btc/"
 un_url="unconfirmed-transactions"
-in_url="tx"
+in_url="https://www.blockchain.com/btc/tx/"
 ad_url="address"
 
 parameter_counter=0;
 
 
-while getopts "e:n:h:" arg; do
+while getopts "e:n:i:h:" arg; do
 	case $arg in
 	   e) explorer="$OPTARG"; let parameter_counter+=1;;
 	   n) number_tran="$OPTARG"; let parameter_counter+=1;;
+	   i) inspect_tran="$OPTARG"; let parameter_counter+=1;;
 	   h) helpPanel;; 
 	esac
 done
@@ -181,7 +222,8 @@ else
 		else
 		    unconfirmTransactions $number_tran
 		fi
-
+	elif [ $explorer == "inspect" ]; then
+		inspectTran $inspect_tran
 	fi
 fi
 
